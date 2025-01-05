@@ -27,6 +27,14 @@ class UserController extends Controller
     public function getData(Request $request)
     {
         $userData = $request->user();
+
+        if (!isset($userData->reimbursement_data)) {
+            $userData->reimbursement_data = [
+                'total_pending_amount' => 0,
+                'total_reimbursed_amount' => 0,
+            ];
+        }
+
         $userData->reimbursement_data['total_pending_amount']  = $this->formatedAmount($userData->reimbursement_data['total_pending_amount']);
         $userData->reimbursement_data['total_reimbursed_amount'] = $this->formatedAmount($userData->reimbursement_data['total_reimbursed_amount']);
         

@@ -36,14 +36,18 @@ class ReportController extends Controller
 
         if (isset($report['reimbursements'])) {
             $reimbursements = $report['reimbursements'];
+            $formattedReimbursements = [];
             foreach ($reimbursements as $key => $reimbursement) {
                 $user = $users->firstWhere('id', $key);
-                $reimbursement['id'] = $key;
-                $reimbursement['amount'] = $this->formatedAmount($reimbursement['amount']);
-                $reimbursement['name'] = $user['name'];
-                $reimbursements[$key] = $reimbursement;
+                $formattedReimbursements[] = [
+                    'id' => $key,
+                    'amount' => $this->formatedAmount($reimbursement['amount']),
+                    'name' => $user['name'] ?? 'Unknown',
+                    'count' => $reimbursement['count'],
+                    'transaction_list' => $reimbursement['transaction_list']
+                ];
             }
-            $report['reimbursements'] = $reimbursements;
+            $report['reimbursements'] = $formattedReimbursements;
         }
 
         $report['totalExpense'] = $this->formatedAmount($report['totalExpense']);
@@ -65,7 +69,7 @@ class ReportController extends Controller
 
     public function updateMonthlyReport(array $data, $transactionId)
     {
-        $month = date('n', strtotime($data['date']));
+        $month = str_pad(date('n', strtotime($data['date'])), 2, '0', STR_PAD_LEFT);
         $year = date('Y', strtotime($data['date']));
 
         $reportRef = $this->database->getReference("monthlyReports/{$year}-{$month}");

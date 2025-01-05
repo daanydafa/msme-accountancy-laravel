@@ -43,6 +43,7 @@ class OrderController extends Controller
             return response()->json([
                 'status' => 'success',
                 'message' => 'Order has been created',
+                'id' => $orderId,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
@@ -73,34 +74,60 @@ class OrderController extends Controller
             foreach ($order['items'] as &$item) {
                 $item['items_price'] = $this->formatedAmount($item['items_price']);
             }
-
-            $formattedOrders[$key] = $order;
+            $formattedOrders[] = $order;
         }
 
-        return response()->json($formattedOrders);
+        return response()->json([
+            'data' => $formattedOrders,
+            'message' => 'Orders retrieved successfully',
+        ], 200);
     }
 
     public function show($id)
     {
-        $formattedOrders = $this->index()->getData();
+        $formattedOrders = $this->index()->getData(true)['data'];
         $formattedOrder = collect($formattedOrders)->firstWhere('id', $id);
+
+        if (!$formattedOrder) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
 
         $transactions = app(TransactionController::class)->getTransactionsByOrder($id);
 
-        $formattedOrder->transactions = $transactions;
-
-        return response()->json($formattedOrder);
+        return response()->json([
+            'message' => 'Order retrieved successfully',
+            'data' => $formattedOrder,
+            'transactions' => $transactions->original
+        ]);
     }
 
     public function getOnGoingOrders()
     {
-        $orders = collect($this->index()->getData())
-            ->filter(function ($order) {
-                return $order->status !== 'finished';
-            })
-            ->toArray();
+        $response = $this->index();
+        $orders = collect($response->getData(true)['data']);
 
-        return response()->json($orders);
+        if ($orders->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No orders found',
+            ], 200);
+        }
+
+        $ongoingOrders = $orders->filter(function ($order) {
+            return isset($order['status']) && $order['status'] !== 'finished';
+        })->values();
+
+        if ($ongoingOrders->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No ongoing orders found',
+            ], 200);
+        }
+
+        return response()->json([
+            'data' => $ongoingOrders,
+            'message' => 'Ongoing orders retrieved successfully',
+        ], 200);
     }
 
     public function edit(Request $request)
@@ -133,7 +160,7 @@ class OrderController extends Controller
     private function formatedAmount($amount)
     {
         if (!is_numeric($amount)) {
-            return '0'; 
+            return '0';
         }
         return number_format(floatval($amount), 0, ',', '.');
     }

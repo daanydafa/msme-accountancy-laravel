@@ -89,10 +89,13 @@ class TransactionController extends Controller
             $transaction['date'] = isset($transaction['date']) ? $this->formatedDate($transaction['date']) : 'Invalid date';
             $transaction['amount'] = isset($transaction['amount']) ? $this->formatedAmount($transaction['amount']) : 'Rp 0,00';
 
-            $formattedTransactions[$key] = $transaction;
+            $formattedTransactions[] = $transaction;
         }
 
-        return response()->json($formattedTransactions);
+        return response()->json([
+            'message' => 'Transactions retrieved successfully',
+            'data' => $formattedTransactions
+        ]);
     }
 
     public function getTransactionsByMonth($month, $year = null)
@@ -101,35 +104,72 @@ class TransactionController extends Controller
             $year = date('Y');
         }
 
-        $formattedTransactions = collect($this->index()->getData())
-            ->filter(function ($transaction) use ($month, $year) {
-                $transactionDate = date('n', strtotime($transaction->date));
-                $transactionYear = date('Y', strtotime($transaction->date));
-                return $transactionDate == $month && $transactionYear == $year;
-            })
-            ->toArray();
+        $response = $this->index();
+        $transactions = collect($response->getData(true)['data']);
 
-        return response()->json($formattedTransactions);
+        if ($transactions->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No transactions found',
+            ], 200);
+        }
+
+        $transactionsByMonth = $transactions->filter(function ($transaction) use ($month, $year) {
+            $transactionDate = date('n', strtotime($transaction['date']));
+            $transactionYear = date('Y', strtotime($transaction['date']));
+            return $transactionDate == $month && $transactionYear == $year;
+        })->values();
+
+        if ($transactionsByMonth->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No transactins by month found',
+            ], 200);
+        }
+
+        return response()->json([
+            'data' => $transactionsByMonth,
+            'message' => 'Transactions by user retrieved successfully',
+        ], 200);
     }
 
     public function getTransactionsByUser($userId)
     {
-        $formattedTransactions = collect($this->index()->getData())
-            ->filter(function ($transaction) use ($userId) {
-                return $transaction->user_id == $userId &&
-                    $transaction->detailed_type == 'operational';
-            })
-            ->toArray();
 
-        return response()->json($formattedTransactions);
+        $response = $this->index();
+        $transactions = collect($response->getData(true)['data']);
+
+        if ($transactions->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No transactions found',
+            ], 200);
+        }
+
+        $transactionsByUser = $transactions->filter(function ($transaction) use ($userId) {
+            return $transaction['user_id'] == $userId &&
+                $transaction['detailed_type'] == 'operational';
+        })->values();
+
+        if ($transactionsByUser->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No transactins by user found',
+            ], 200);
+        }
+
+        return response()->json([
+            'data' => $transactionsByUser,
+            'message' => 'Transactions by user retrieved successfully',
+        ], 200);
     }
 
     public function getTransactionsByList(Request $request)
     {
         $transactionIds = $request->all();
-        $formattedTransactions = collect($this->index()->getData())
+        $formattedTransactions = collect($this->index()->getData(true)['data'])
             ->filter(function ($transaction) use ($transactionIds) {
-                return in_array($transaction->id, $transactionIds); // Akses langsung properti id
+                return in_array($transaction['id'], $transactionIds);
             })
             ->values()
             ->toArray();
@@ -139,17 +179,31 @@ class TransactionController extends Controller
 
     public function getTransactionsByOrder($orderId)
     {
-        $formattedTransactions = $this->index()->getData();
+        $response = $this->index();
+        $transactions = collect($response->getData(true)['data']);
 
-        $transactionsByOrder = [];
-        if (isset($formattedTransactions)) {
-            foreach ($formattedTransactions as $transaction) {
-                if ($transaction->order_id == $orderId) {
-                    $transactionsByOrder[] = $transaction;
-                }
-            }
+        if ($transactions->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No transactions found',
+            ], 200);
         }
-        return $transactionsByOrder;
+
+        $transactionsByOrder =  $transactions->filter(function ($transaction) use ($orderId) {
+            return isset($transaction['order_id']) && $transaction['order_id'] == $orderId;
+        })->values();
+
+        if ($transactionsByOrder->isEmpty()) {
+            return response()->json([
+                'data' => [],
+                'message' => 'No transactions by order found',
+            ], 200);
+        }
+
+        return response()->json([
+            'data' => $transactionsByOrder,
+            'message' => 'Transactions by order retrieved successfully',
+        ], 200);
     }
 
     public function edit(Request $request)
