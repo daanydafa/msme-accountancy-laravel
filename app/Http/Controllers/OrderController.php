@@ -32,7 +32,6 @@ class OrderController extends Controller
             }
 
             $data['price_agreement'] = $priceAgreement;
-
             $data['status'] = 'pending';
             $data['created_at'] = time();
 

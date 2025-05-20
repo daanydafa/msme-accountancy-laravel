@@ -101,7 +101,6 @@ class AuthController extends Controller
             $token = bin2hex(random_bytes(40));
             $expiresAt = now()->addDay()->timestamp;
 
-            // Update token in Firebase
             $tokenData = [
                 'token' => $token,
                 'expires_at' => $expiresAt,
